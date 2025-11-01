@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if category %}{{ category.name }} - 百度牙科百科{% elif title %}{{ title }} - 百度牙科百科{% else %}全部词条 - 百度牙科百科{% endif %}{% endblock %}
+
+{% block content %}
+<div class="entry-list-content">
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <h1 class="page-title">
+            {% if category %}
+            {{ category.name }}
+            {% elif title %}
+            {{ title }}
+            {% else %}
+            全部词条
+            {% endif %}
+        </h1>
+        {% if category %}
+        <p class="category-desc">{{ category.description }}</p>
+        {% endif %}
+    </div>
+
+    <!-- 搜索结果提示和过滤控件 -->
+    <div class="search-filter-controls">
+        {% if search_query %}
+        <div class="search-result-info">
+            <p>搜索结果："{{ search_query }}"，找到 {{ entries.paginator.count }} 个相关词条</p>
+        </div>
+        {% endif %}
+        
+        <!-- 排序和过滤选项 -->
+        <div class="filter-options">
+            <form method="get" class="filter-form">
+                {% if category %}
+                <input type="hidden" name="category" value="{{ category.slug }}">
+                {% endif %}
+                {% if search_query %}
+                <input type="hidden" name="q" value="{{ search_query }}">
+                {% endif %}
+                
+                <div class="filter-group">
+                    <label for="sort_by">排序方式：</label>
+                    <select name="sort_by" id="sort_by" class="sort-select" onchange="this.form.submit()">
+                        {% if search_query %}
+                        <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>相关性</option>
+                        {% endif %}
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>最新发布</option>
+                        <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>最早发布</option>
+                        <option value="popularity" {% if sort_by == 'popularity' %}selected{% endif %}>浏览最多</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="checkbox-input">
+                        <input type="checkbox" id="has_image" name="has_image" value="true" 
+                               {% if has_image %}checked{% endif %} 
+                               onchange="this.form.submit()">
+                        <label for="has_image">仅显示有图片的词条</label>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 词条列表 -->
+    <div class="entries-container">
+        {% if entries %}
+        <div class="entry-list">
+            {% for entry in entries %}
+            <article class="list-entry-item">
+                <a href="{% url 'encyclopedia:entry_detail' entry.slug %}" class="entry-title-link">
+                    <h3 class="entry-item-title">{{ entry.title }}</h3>
+                </a>
+                <div class="entry-excerpt">
+                    <p>{{ entry.summary }}</p>
+                </div>
+                <div class="entry-meta">
+                    <div class="meta-left">
+                        <a href="{% url 'encyclopedia:entry_list_by_category' entry.category.slug %}" class="category-badge">
+                            {{ entry.category.name }}
+                        </a>
+                        {% if entry.author %}
+                        <span class="author">{{ entry.author.username }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="meta-right">
+                        <span class="publish-date">{{ entry.created_at|date:"Y-m-d H:i" }}</span>
+                        <span class="view-counter">{{ entry.view_count }}次浏览</span>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        
+        <!-- 分页 -->
+        {% if entries.has_other_pages %}
+        <div class="pagination">
+            <ul class="pagination-list">
+                {% if entries.has_previous %}
+                <li class="page-item">
+                    <a href="?page={{ entries.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="page-link">
+                        上一页
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in entries.paginator.page_range %}
+                {% if entries.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+                {% elif num > entries.number|add:'-3' and num < entries.number|add:'3' %}
+                <li class="page-item">
+                    <a href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}" class="page-link">{{ num }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                
+                {% if entries.has_next %}
+                <li class="page-item">
+                    <a href="?page={{ entries.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="page-link">
+                        下一页
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-entries">
+            <p>没有找到相关词条</p>
+            {% if user.is_authenticated %}
+            <a href="{% url 'encyclopedia:create_entry' %}" class="create-first-entry">创建词条</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

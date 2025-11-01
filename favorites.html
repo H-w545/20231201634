@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }} - 百度牙科百科{% endblock %}
+
+{% block content %}
+<div class="favorites-content">
+    <div class="page-header">
+        <h1 class="page-title">{{ page_title }}</h1>
+        <p class="page-description">您收藏的所有牙科知识词条</p>
+    </div>
+
+    {% if entries %}
+    <div class="entries-container">
+        <div class="entries-grid">
+            {% for entry in entries %}
+            <div class="entry-card">
+                <a href="{% url 'encyclopedia:entry_detail' entry.slug %}" class="entry-link">
+                    {% if entry.main_image %}
+                    <div class="entry-image">
+                        <img src="{{ entry.main_image.image.url }}" alt="{{ entry.title }}" class="entry-thumbnail">
+                    </div>
+                    {% endif %}
+                    <div class="entry-content">
+                        <h3 class="entry-title">{{ entry.title }}</h3>
+                        <div class="entry-meta">
+                            <span class="category-tag">
+                                <a href="{% url 'encyclopedia:entry_list_by_category' entry.category.slug %}">
+                                    {{ entry.category.name }}
+                                </a>
+                            </span>
+                            <span class="view-count">浏览: {{ entry.view_count }}</span>
+                            <span class="comment-count">评论: {{ entry.comments.count }}</span>
+                            <span class="favorite-count">收藏: {{ entry.favorited_by.count }}</span>
+                        </div>
+                        <p class="entry-summary">{{ entry.summary }}</p>
+                        <div class="entry-footer">
+                            <span class="author">作者: {{ entry.author.username }}</span>
+                            <span class="update-time">{{ entry.updated_at|date:"Y-m-d" }}</span>
+                        </div>
+                    </div>
+                </a>
+                <div class="entry-actions">
+                    <button class="btn-favorite active" data-entry-id="{{ entry.id }}">
+                        <i class="icon-favorite">&#9733;</i>
+                        <span>已收藏</span>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-favorites">
+        <div class="empty-icon">📚</div>
+        <h3>暂无收藏内容</h3>
+        <p>您还没有收藏任何词条，浏览词条时点击收藏按钮可以添加收藏</p>
+        <a href="{% url 'encyclopedia:entry_list' %}" class="btn btn-primary">去浏览词条</a>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 收藏按钮点击事件
+        const favoriteButtons = document.querySelectorAll('.btn-favorite');
+        favoriteButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const entryId = this.getAttribute('data-entry-id');
+                const icon = this.querySelector('.icon-favorite');
+                const text = this.querySelector('span');
+                
+                // 发送AJAX请求
+                fetch(`{% url 'encyclopedia:toggle_favorite' 0 %}`.replace('0', entryId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新按钮状态
+                        if (data.is_favorited) {
+                            this.classList.add('active');
+                            icon.textContent = '★';
+                            text.textContent = '已收藏';
+                        } else {
+                            this.classList.remove('active');
+                            icon.textContent = '☆';
+                            text.textContent = '收藏';
+                            // 从收藏列表中移除该项
+                            const card = this.closest('.entry-card');
+                            if (card) {
+                                card.style.opacity = '0';
+                                setTimeout(() => {
+                                    card.remove();
+                                    // 检查是否还有收藏项
+                                    if (document.querySelectorAll('.entry-card').length === 0) {
+                                        location.reload(); // 刷新页面显示空状态
+                                    }
+                                }, 300);
+                            }
+                        }
+                        
+                        // 显示提示消息
+                        showNotification(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('操作失败，请重试', 'error');
+                });
+            });
+        });
+        
+        // 显示通知消息
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 3000);
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

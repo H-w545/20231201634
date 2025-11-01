@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}百度牙科百科{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 百度风格样式 -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 头部导航 -->
+    <header class="header">
+        <div class="container">
+            <div class="header-top">
+                <div class="logo">
+                    <a href="{% url 'encyclopedia:index' %}">
+                        <img src="{% static 'images/logo.svg' %}" alt="百度牙科百科" class="logo-img">
+                        <span class="logo-text">百度牙科百科</span>
+                    </a>
+                </div>
+                
+                <!-- 搜索框 -->
+                <div class="search-box">
+                    <form action="{% url 'encyclopedia:entry_list' %}" method="get">
+                        <div class="search-input-group">
+                            <input type="text" name="q" placeholder="搜索牙科知识" value="{{ search_query }}" class="search-input">
+                            <button type="submit" class="search-btn">
+                                <i class="search-icon">🔍</i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 用户菜单 -->
+                <div class="user-menu">
+                    {% if user.is_authenticated %}
+                        <div class="dropdown">
+                            <button class="user-btn">
+                                {{ user.username }}
+                            </button>
+                            <div class="dropdown-menu">
+                                <a href="#" class="dropdown-item">个人中心</a>
+                                <a href="{% url 'encyclopedia:create_entry' %}" class="dropdown-item">创建词条</a>
+                                <a href="{% url 'admin:index' %}" class="dropdown-item">管理后台</a>
+                                <form action="{% url 'admin:logout' %}" method="post" class="dropdown-item">
+                                    {% csrf_token %}
+                                    <button type="submit" class="logout-btn">退出登录</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{% url 'admin:index' %}" class="login-btn">登录</a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 主导航 -->
+            <nav class="main-nav">
+            <!-- 移动端菜单按钮 -->
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                ☰
+            </button>
+            
+            <ul class="nav-list" id="navLinks">
+                <li class="nav-item"><a href="{% url 'encyclopedia:index' %}" class="nav-link">首页</a></li>
+                <li class="nav-item"><a href="{% url 'encyclopedia:entry_list' %}" class="nav-link">全部词条</a></li>
+                <li class="nav-item"><a href="{% url 'encyclopedia:category_list' %}" class="nav-link">分类浏览</a></li>
+                <li class="nav-item"><a href="{% url 'encyclopedia:popular_entries' %}" class="nav-link">热门词条</a></li>
+            </ul>
+        </nav>
+        
+        <script>
+            // 移动端菜单切换
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const navLinks = document.getElementById('navLinks');
+            
+            if (mobileMenuBtn && navLinks) {
+                mobileMenuBtn.addEventListener('click', function() {
+                    navLinks.classList.toggle('show');
+                    // 切换菜单图标
+                    this.textContent = navLinks.classList.contains('show') ? '✕' : '☰';
+                });
+                
+                // 点击页面其他区域关闭菜单
+                document.addEventListener('click', function(event) {
+                    if (!mobileMenuBtn.contains(event.target) && !navLinks.contains(event.target)) {
+                        navLinks.classList.remove('show');
+                        mobileMenuBtn.textContent = '☰';
+                    }
+                });
+            }
+        </script>
+        </div>
+    </header>
+
+    <!-- 消息提示 -->
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message {% if message.tags %}message-{{ message.tags }}{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <div class="container">
+            <div class="content-wrapper">
+                <!-- 主要内容 -->
+                <div class="content">
+                    {% block content %}{% endblock %}
+                </div>
+                
+                <!-- 侧边栏 -->
+                <aside class="sidebar">
+                    {% block sidebar %}
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">分类导航</h3>
+                        <ul class="category-list">
+                            {% for category in categories %}
+                            <li class="category-item">
+                                {% if category.slug %}
+                                <a href="{% url 'encyclopedia:entry_list_by_category' category.slug %}" class="category-link">
+                                    {{ category.name }}
+                                    <span class="entry-count">({{ category.entries.count }})</span>
+                                </a>
+                                {% else %}
+                                <span class="category-link disabled">
+                                    {{ category.name }}
+                                    <span class="entry-count">({{ category.entries.count }})</span>
+                                </span>
+                                {% endif %}
+                            </li>
+                            {% empty %}
+                            <li class="category-item">暂无分类</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">热门词条</h3>
+                        <ul class="hot-entries">
+                            {% for entry in popular_entries|default:latest_entries %}  
+                            <li class="hot-entry-item">
+                                <a href="{% url 'encyclopedia:entry_detail' entry.slug %}" class="hot-entry-link">
+                                    {{ entry.title }}
+                                </a>
+                                <span class="view-count">{{ entry.view_count }}次浏览</span>
+                            </li>
+                            {% empty %}
+                            <li class="hot-entry-item">暂无词条</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    {% if user.is_authenticated %}
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">快捷操作</h3>
+                        <ul class="quick-actions">
+                            <li class="action-item">
+                                <a href="{% url 'encyclopedia:create_entry' %}" class="action-link">
+                                    <i class="action-icon">✏️</i> 创建词条
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% endblock %}
+                </aside>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p class="copyright">© 2024 百度牙科百科 - 口腔医学知识分享平台</p>
+                    <p class="about">本平台提供专业的牙科医疗知识，内容仅供参考，不能替代专业医生诊断</p>
+                </div>
+                <div class="footer-links">
+                    <a href="#" class="footer-link">关于我们</a>
+                    <a href="#" class="footer-link">使用帮助</a>
+                    <a href="#" class="footer-link">隐私政策</a>
+                    <a href="#" class="footer-link">联系我们</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 自定义JS -->
+    <script src="{% static 'js/script.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

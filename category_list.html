@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}分类浏览 - 百度牙科百科{% endblock %}
+
+{% block content %}
+<div class="category-list-content">
+    <div class="page-header">
+        <h1 class="page-title">全部分类</h1>
+        <p class="page-description">浏览百度牙科百科的所有分类，了解各类牙科知识</p>
+    </div>
+
+    {% if categories %}
+    <div class="categories-container">
+        <div class="categories-grid">
+            {% for item in categories_with_latest %}
+            {% with category=item.category %}
+            <div class="category-card">
+                <a href="{% url 'encyclopedia:entry_list_by_category' category.slug %}" class="category-link">
+                    <div class="category-header">
+                    <h3 class="category-name">
+                        {% if category.icon %}
+                        <span class="category-icon">{{ category.icon }}</span>
+                        {% endif %}
+                        {{ category.name }}
+                    </h3>
+                    <span class="entry-count">{{ category.entries.count }} 个词条</span>
+                </div>
+                    {% if category.description %}
+                    <div class="category-description">
+                        <p>{{ category.description }}</p>
+                    </div>
+                    {% endif %}
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">最近更新</span>
+                            <span class="stat-value">
+                                {% if item.latest_entry %}
+                                {{ item.latest_entry.updated_at|date:"Y-m-d" }}
+                                {% else %}
+                                暂无更新
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- 分类统计信息 -->
+    <div class="category-stats-overview">
+        <div class="stats-summary">
+            <div class="summary-item">
+                <span class="summary-number">{{ total_entries|default:0 }}</span>
+                <span class="summary-label">词条总数</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-number">{{ categories.count }}</span>
+                <span class="summary-label">分类总数</span>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-categories">
+        <p>暂无分类数据</p>
+        {% if user.is_staff %}
+        <p>请在管理后台创建分类</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 为分类卡片添加悬停效果
+        const categoryCards = document.querySelectorAll('.category-card');
+        categoryCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-5px)';
+                this.style.boxShadow = '0 10px 20px rgba(0, 0, 0, 0.1)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+            });
+        });
+        
+        // 平滑滚动到页面顶部
+        if (window.scrollY > 300) {
+            const scrollTopBtn = document.createElement('button');
+            scrollTopBtn.className = 'scroll-top-btn';
+            scrollTopBtn.innerHTML = '↑';
+            document.body.appendChild(scrollTopBtn);
+            
+            scrollTopBtn.addEventListener('click', function() {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 300) {
+                    scrollTopBtn.style.display = 'block';
+                } else {
+                    scrollTopBtn.style.display = 'none';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}百度牙科百科 - 首页{% endblock %}
+
+{% block content %}
+<div class="index-content">
+    <!-- 轮播推荐区 -->
+    {% if featured_entries %}
+    <section class="featured-section">
+        <h2 class="section-title">推荐词条</h2>
+        <div class="featured-carousel">
+            {% for entry in featured_entries %}
+            <div class="featured-item">
+                <a href="{% url 'encyclopedia:entry_detail' entry.slug %}" class="featured-link">
+                    <div class="featured-content">
+                        <h3 class="featured-title">{{ entry.title }}</h3>
+                        <p class="featured-summary">{{ entry.summary }}</p>
+                        <div class="featured-meta">
+                            <span class="category-tag">{{ entry.category.name }}</span>
+                            <span class="view-count">{{ entry.view_count }}次浏览</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 最新词条区 -->
+    <section class="latest-section">
+        <div class="section-header">
+            <h2 class="section-title">最新词条</h2>
+            <a href="{% url 'encyclopedia:entry_list' %}" class="view-more">查看更多 <i class="arrow-icon">›</i></a>
+        </div>
+        <div class="latest-entries">
+            {% if latest_entries %}
+            <div class="entry-grid">
+                {% for entry in latest_entries %}
+                <article class="entry-item">
+                    <a href="{% url 'encyclopedia:entry_detail' entry.slug %}" class="entry-link">
+                        <h3 class="entry-title">{{ entry.title }}</h3>
+                        <p class="entry-summary">{{ entry.summary }}</p>
+                    </a>
+                    <div class="entry-meta">
+                        <a href="{% url 'encyclopedia:entry_list_by_category' entry.category.slug %}" class="category-link">
+                            {{ entry.category.name }}
+                        </a>
+                        <span class="publish-time">{{ entry.created_at|date:"Y-m-d" }}</span>
+                        <span class="view-count">{{ entry.view_count }}次浏览</span>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>暂无词条，请稍后再来查看</p>
+                {% if user.is_authenticated %}
+                <a href="{% url 'encyclopedia:create_entry' %}" class="create-btn">创建第一个词条</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- 分类推荐区 -->
+    {% if categories %}
+    <section class="categories-section">
+        <div class="section-header">
+            <h2 class="section-title">分类浏览</h2>
+            <a href="{% url 'encyclopedia:category_list' %}" class="view-more">全部分类 <i class="arrow-icon">›</i></a>
+        </div>
+        <div class="categories-grid">
+            {% for category in categories %}
+            <a href="{% url 'encyclopedia:entry_list_by_category' category.slug %}" class="category-card">
+                <h3 class="category-name">{{ category.name }}</h3>
+                <p class="category-desc">{{ category.description|default:'暂无描述' }}</p>
+                <div class="category-count">
+                    <span>{{ category.entries.count }} 个词条</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 轮播图简单实现
+    document.addEventListener('DOMContentLoaded', function() {
+        const carousel = document.querySelector('.featured-carousel');
+        if (carousel) {
+            let currentIndex = 0;
+            const items = carousel.querySelectorAll('.featured-item');
+            const totalItems = items.length;
+            
+            if (totalItems > 1) {
+                // 初始化显示第一个
+                items.forEach((item, index) => {
+                    item.style.display = index === 0 ? 'block' : 'none';
+                });
+                
+                // 自动轮播
+                setInterval(() => {
+                    currentIndex = (currentIndex + 1) % totalItems;
+                    items.forEach((item, index) => {
+                        item.style.display = index === currentIndex ? 'block' : 'none';
+                    });
+                }, 5000);
+            }
+        }
+    });
+</script>
+{% endblock %}

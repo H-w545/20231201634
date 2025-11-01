@@ -1,0 +1,359 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ entry.title }} - 百度牙科百科{% endblock %}
+
+{% block content %}
+<div class="entry-detail-content">
+    <!-- 词条标题区 -->
+    <header class="entry-header">
+        <h1 class="entry-title">{{ entry.title }}</h1>
+        <div class="entry-meta">
+            <div class="meta-info">
+                <span class="category-badge">
+                    <a href="{% url 'encyclopedia:entry_list_by_category' entry.category.slug %}">
+                        {{ entry.category.name }}
+                    </a>
+                </span>
+                {% if entry.author %}
+                <span class="author">作者：{{ entry.author.username }}</span>
+                {% endif %}
+                <span class="publish-date">发布时间：{{ entry.created_at|date:"Y-m-d H:i:s" }}</span>
+                {% if entry.updated_at != entry.created_at %}
+                <span class="update-date">更新时间：{{ entry.updated_at|date:"Y-m-d H:i:s" }}</span>
+                {% endif %}
+                <span class="view-count">浏览次数：{{ entry.view_count }}</span>
+            </div>
+            <div class="action-buttons">
+                {% if user.is_authenticated %}
+                {% if user == entry.author or user.is_superuser %}
+                <a href="{% url 'encyclopedia:edit_entry' entry.slug %}" class="btn btn-edit">编辑</a>
+                <a href="{% url 'encyclopedia:delete_entry' entry.slug %}" class="btn btn-delete">删除</a>
+                {% endif %}
+                
+                <!-- 收藏按钮 -->
+                <button class="btn btn-favorite {% if user.is_authenticated and entry in user.favorites.all %}
+                active{% endif %}" data-entry-id="{{ entry.id }}">
+                    <i class="icon-favorite">{% if user.is_authenticated and entry in user.favorites.all %}
+                    ★{% else %}☆{% endif %}</i>
+                    <span>{% if user.is_authenticated and entry in user.favorites.all %}已收藏{% else %}收藏{% endif %}</span>
+                </button>
+                {% endif %}
+                
+                <!-- 分享按钮 -->
+                <button class="btn btn-share" id="shareButton">
+                    <i class="icon-share">↗</i>
+                    <span>分享</span>
+                </button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- 词条主图 -->
+    {% if entry.entry_image %}
+    <div class="entry-main-image">
+        <img src="{{ entry.entry_image.url }}" alt="{{ entry.title }}" class="main-image">
+    </div>
+    {% endif %}
+
+    <!-- 词条内容区 -->
+    <div class="entry-body">
+        <div class="entry-summary">
+            <h3>摘要</h3>
+            <p>{{ entry.summary }}</p>
+        </div>
+        <div class="entry-content">
+            {{ entry.content|safe }}
+        </div>
+    </div>
+    
+    <!-- 相关图片展示 -->
+    {% if images %}
+    <section class="entry-images">
+        <h3>相关图片</h3>
+        <div class="images-gallery">
+            {% for image in images %}
+            <div class="image-item">
+                <img src="{{ image.image.url }}" alt="图片" class="gallery-image">
+                {% if image.caption %}
+                <div class="image-caption">{{ image.caption }}</div>
+                {% endif %}
+                {% if user.is_authenticated %}
+                {% if user == entry.author or user.is_superuser %}
+                <a href="{% url 'encyclopedia:delete_entry_image' image.id %}" class="delete-image" onclick="return confirm('确定要删除这张图片吗？')">删除</a>
+                {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+    
+    <!-- 图片上传表单 -->
+    {% if user.is_authenticated %}
+    {% if user == entry.author or user.is_superuser %}
+    <section class="image-upload-section">
+        <h3>上传图片</h3>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ image_form.as_p }}
+            <button type="submit" name="image_submit" class="btn btn-upload">上传图片</button>
+        </form>
+    </section>
+    {% endif %}
+    {% endif %}
+
+    <!-- 词条统计信息 -->
+    <div class="entry-stats">
+        <div class="stat-item">
+            <span class="stat-label">浏览次数</span>
+            <span class="stat-value">{{ entry.view_count }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">收藏次数</span>
+            <span class="stat-value favorite-count">{{ entry.favorited_by.count }}</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">评论数量</span>
+            <span class="stat-value">{{ entry.comments.count }}</span>
+        </div>
+    </div>
+    
+    <!-- 相关词条推荐 -->
+    {% if related_entries %}
+    <section class="related-entries">
+        <h3>相关词条</h3>
+        <div class="related-list">
+            {% for related_entry in related_entries %}
+            <a href="{% url 'encyclopedia:entry_detail' related_entry.slug %}" class="related-link">
+                <span class="related-title">{{ related_entry.title }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 评论区 -->
+    <section class="comments-section">
+        <h3>评论 ({{ entry.comments.count }})</h3>
+        
+        <!-- 评论表单 -->
+        {% if user.is_authenticated %}
+        <div class="comment-form">
+            <h4>发表评论</h4>
+            <form method="post">
+                {% csrf_token %}
+                {{ comment_form.as_p }}
+                <button type="submit" name="comment_submit" class="btn btn-submit">提交评论</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="login-prompt">
+            <p>请<a href="{% url 'login' %}">登录</a>后发表评论</p>
+        </div>
+        {% endif %}
+        
+        <!-- 评论列表 -->
+        {% if entry.comments.count > 0 %}
+        <div class="comments-list">
+            {% for comment in entry.comments.all %}
+            <div class="comment-item">
+                <div class="comment-header">
+                    <span class="comment-author">{{ comment.author.username }}</span>
+                    <span class="comment-time">{{ comment.created_at|date:"Y-m-d H:i:s" }}</span>
+                </div>
+                <div class="comment-content">
+                    {{ comment.content }}
+                </div>
+                {% if user == comment.author or user.is_superuser %}
+                <div class="comment-actions">
+                    <a href="{% url 'encyclopedia:delete_comment' comment.id %}" class="delete-comment">删除</a>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-comments">
+            <p>暂无评论，快来发表第一条评论吧！</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 平滑滚动到评论区
+        const commentLink = document.querySelector('a[href="#comments"]');
+        if (commentLink) {
+            commentLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                const commentsSection = document.querySelector('.comments-section');
+                if (commentsSection) {
+                    commentsSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        }
+        
+        // 删除确认
+        const deleteButtons = document.querySelectorAll('.btn-delete, .delete-comment, .delete-image');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                if (!confirm('确定要删除吗？此操作不可撤销。')) {
+                    e.preventDefault();
+                }
+            });
+        });
+        
+        // 分享功能
+        const shareButton = document.getElementById('shareButton');
+        if (shareButton) {
+            shareButton.addEventListener('click', function() {
+                const url = window.location.href;
+                const title = document.title;
+                
+                // 检查浏览器是否支持Web Share API
+                if (navigator.share) {
+                    navigator.share({
+                        title: title,
+                        text: '{{ entry.title }} - 百度牙科百科',
+                        url: url
+                    }).catch(error => {
+                        console.error('分享失败:', error);
+                        fallbackShare(url, title);
+                    });
+                } else {
+                    // 不支持Web Share API时使用复制链接的方式
+                    fallbackShare(url, title);
+                }
+            });
+        }
+        
+        // 降级分享方案 - 复制链接到剪贴板
+        function fallbackShare(url, title) {
+            // 创建分享面板
+            const sharePanel = document.createElement('div');
+            sharePanel.className = 'share-panel';
+            sharePanel.innerHTML = `
+                <div class="share-header">
+                    <h4>分享词条</h4>
+                    <button class="share-close">×</button>
+                </div>
+                <div class="share-content">
+                    <p>请选择分享方式或复制链接</p>
+                    <div class="share-links">
+                        <div class="share-item">
+                            <button class="copy-link-btn" data-url="${url}">复制链接</button>
+                        </div>
+                        <div class="share-item">
+                            <a href="https://weibo.com/share/share.php?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}" target="_blank" class="share-weibo">
+                                <i class="share-icon">🔷</i> 微博
+                            </a>
+                        </div>
+                        <div class="share-item">
+                            <a href="https://connect.qq.com/widget/shareqq/index.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}" target="_blank" class="share-qq">
+                                <i class="share-icon">💙</i> QQ
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(sharePanel);
+            
+            // 关闭分享面板
+            sharePanel.querySelector('.share-close').addEventListener('click', function() {
+                sharePanel.classList.add('hide');
+                setTimeout(() => {
+                    sharePanel.remove();
+                }, 300);
+            });
+            
+            // 复制链接
+            sharePanel.querySelector('.copy-link-btn').addEventListener('click', function() {
+                const urlToCopy = this.getAttribute('data-url');
+                navigator.clipboard.writeText(urlToCopy).then(() => {
+                    this.textContent = '已复制!';
+                    setTimeout(() => {
+                        this.textContent = '复制链接';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('无法复制文本:', err);
+                });
+            });
+            
+            // 显示分享面板
+            setTimeout(() => {
+                sharePanel.classList.add('show');
+            }, 10);
+        }
+        
+        // 收藏按钮点击事件
+        const favoriteButton = document.querySelector('.btn-favorite');
+        if (favoriteButton) {
+            favoriteButton.addEventListener('click', function() {
+                const entryId = this.getAttribute('data-entry-id');
+                const icon = this.querySelector('.icon-favorite');
+                const text = this.querySelector('span');
+                const favoritesCountElement = document.querySelector('.favorite-count');
+                
+                // 发送AJAX请求
+                fetch(`{% url 'encyclopedia:toggle_favorite' 0 %}`.replace('0', entryId), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新按钮状态
+                        if (data.is_favorited) {
+                            this.classList.add('active');
+                            icon.textContent = '★';
+                            text.textContent = '已收藏';
+                        } else {
+                            this.classList.remove('active');
+                            icon.textContent = '☆';
+                            text.textContent = '收藏';
+                        }
+                        
+                        // 更新收藏计数
+                        if (favoritesCountElement) {
+                            favoritesCountElement.textContent = data.favorites_count;
+                        }
+                        
+                        // 显示提示消息
+                        showNotification(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('操作失败，请重试', 'error');
+                });
+            });
+        }
+        
+        // 显示通知消息
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 3000);
+        }
+    });
+</script>
+{% endblock %}
